@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Heart Fireworks</title>
+    <style>
+        /* Шрифт в стиле ретро/пикселей */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212; /* Глубокий темный фон */
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Press Start 2P', cursive;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none; /* Чтобы клики проходили сквозь канвас на кнопку */
+        }
+
+        /* Кнопка в стиле Minecraft */
+        .mc-button {
+            position: relative;
+            z-index: 10;
+            padding: 20px 40px;
+            font-size: 16px;
+            color: #FFFFFF;
+            background-color: #707070;
+            border: 4px solid #000000;
+            box-shadow: inset -4px -4px #404040, inset 4px 4px #ababab;
+            cursor: pointer;
+            text-transform: uppercase;
+            image-rendering: pixelated;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+
+        .mc-button:hover {
+            background-color: #8b8b8b;
+        }
+
+        .mc-button:active {
+            transform: scale(0.95);
+            box-shadow: inset 4px 4px #404040, inset -4px -4px #ababab;
+        }
+
+        /* Эффект дрожания экрана */
+        .shake {
+            animation: shake 0.2s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+    <button class="mc-button" id="launchBtn">firework</button>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const btn = document.getElementById('launchBtn');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Пиксельная форма сердечка (сетка 5x5)
+        const heartMatrix = [
+            [0, 1, 0, 1, 0],
+            [1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 0],
+            [0, 0, 1, 0, 0]
+        ];
+
+        const particles = [];
+        const colors = {
+            red: ['#FF0000', '#A00000'],
+            pink: ['#FF69B4', '#C71585'],
+            gold: ['#FFD700', '#DBA506']
+        };
+
+        class Particle {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 3 + 3; // Размер "пикселя" в сердце
+                this.vx = (Math.random() - 0.5) * 15;
+                this.vy = (Math.random() - 0.5) * 20 - 5;
+                this.gravity = 0.25;
+                this.friction = 0.98;
+                this.life = 100;
+                this.opacity = 1;
+                
+                // Выбор цвета
+                let r = Math.random();
+                if (r > 0.9) this.colorSet = colors.gold;
+                else if (r > 0.4) this.colorSet = colors.red;
+                else this.colorSet = colors.pink;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.opacity;
+                const color = this.colorSet[0];
+                const shadow = this.colorSet[1];
+
+                // Отрисовка сердца по матрице
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        if (heartMatrix[row][col]) {
+                            ctx.fillStyle = (row === 0 || col === 0) ? shadow : color;
+                            ctx.fillRect(
+                                this.x + col * this.size, 
+                                this.y + row * this.size, 
+                                this.size, this.size
+                            );
+                        }
+                    }
+                }
+                ctx.restore();
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life -= 1.2;
+                this.opacity = this.life / 100;
+
+                // Создание шлейфа (искр)
+                if (Math.random() > 0.3 && this.life > 10) {
+                    sparkles.push(new Sparkle(this.x + 10, this.y + 10, this.colorSet[0]));
+                }
+            }
+        }
+
+        const sparkles = [];
+        class Sparkle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.size = Math.random() * 4;
+                this.color = color;
+                this.life = 40;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.life / 40;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+            }
+            update() {
+                this.life -= 2;
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+
+            for (let i = sparkles.length - 1; i >= 0; i--) {
+                sparkles[i].update();
+                sparkles[i].draw();
+                if (sparkles[i].life <= 0) sparkles.splice(i, 1);
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        btn.addEventListener('click', (e) => {
+            const rect = btn.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top;
+
+            // Дрожание экрана
+            document.body.classList.add('shake');
+            setTimeout(() => document.body.classList.remove('shake'), 200);
+
+            // Создание пачки сердец
+            for (let i = 0; i < 12; i++) {
+                particles.push(new Particle(centerX, centerY));
+            }
+        });
+
+        animate();
+    </script>
+</body>
+</html>
